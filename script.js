@@ -1,117 +1,70 @@
 let originalImage = null;
-let sizes = []; // Array für Bildgrößen
-let imageName = ''; // Variable für den Bildnamen ohne Endung
-let imageExtension = ''; // Variable für die Bilddateiendung
+let sizes = [];
+let imageName = '';
+let imageExtension = '';
 
-// Bild hochladen und speichern
+// Handle image upload
 document.getElementById('upload').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Bilddaten lesen
     const reader = new FileReader();
     reader.onload = (e) => {
         const img = new Image();
         img.src = e.target.result;
         img.onload = () => {
             originalImage = img;
-            imageName = file.name.split('.').slice(0, -1).join('.'); // Bildnamen ohne Endung extrahieren
-            imageExtension = file.name.split('.').pop(); // Dateiendung extrahieren
-            alert("Bild erfolgreich hochgeladen!");
+            [imageName, imageExtension] = file.name.split(/\.(?=[^\.]+$)/);
+            alert("Image uploaded successfully!");
         };
     };
     reader.readAsDataURL(file);
 });
 
-// Funktion zum Erstellen und Herunterladen der ZIP-Datei
+// Create and download resized images in a ZIP file
 async function downloadResizedImagesAsZip() {
-    const textInput = document.getElementById('textInput').value;
-    sizes = extractSizesFromText(textInput); // Bildgrößen aus dem Text extrahieren
-    
-    if (!originalImage) {
-        alert("Bitte zuerst ein Bild hochladen.");
-        return;
-    }
+    sizes = extractSizesFromText(document.getElementById('textInput').value);
 
-    if (sizes.length === 0) {
-        alert("Keine gültigen Bildgrößen gefunden. Bitte gib einen Text mit Bildgrößen an.");
-        return;
-    }
+    if (!originalImage) return alert("Please upload an image first.");
+    if (!sizes.length) return alert("No valid image sizes found.");
 
-    const zip = new JSZip(); // JSZip-Instanz erstellen
-    const folder = zip.folder("images"); // Ordner innerhalb der ZIP-Datei
+    const zip = new JSZip();
+    const folder = zip.folder("images");
+    document.getElementById("status").textContent = "Creating ZIP file...";
 
-    const statusDiv = document.getElementById("status");
-    statusDiv.textContent = "Erstelle ZIP-Datei...";
-
-    // Bilder in verschiedenen Größen erstellen und zur ZIP-Datei hinzufügen
-    for (let size of sizes) {
-        const [width, height] = size;
+    for (let [width, height] of sizes) {
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
+        canvas.getContext("2d").drawImage(originalImage, 0, 0, width, height);
 
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(originalImage, 0, 0, width, height);
-
-        // Blob mit dem korrekten MIME-Typ erzeugen
         const blob = await new Promise(resolve => canvas.toBlob(resolve, `image/${imageExtension}`));
-        const filename = `${imageName}-${width}x${height}.${imageExtension}`; // Bildnamen mit dynamischem Format
-
-        // Blob zur ZIP-Datei hinzufügen
-        folder.file(filename, blob);
+        folder.file(`${imageName}-${width}x${height}.${imageExtension}`, blob);
     }
 
-    // ZIP-Datei generieren und als Download anbieten
     zip.generateAsync({ type: "blob" }).then(content => {
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
         link.download = "Resized_Images.zip";
         link.click();
 
-        statusDiv.textContent = "ZIP-Datei erfolgreich erstellt und heruntergeladen.";
-        generateHTML(); // Bildname hier übergeben
-    }).catch(err => {
-        statusDiv.textContent = "Fehler beim Erstellen der ZIP-Datei.";
-        console.error("ZIP-Erstellungsfehler:", err);
-    });
+        document.getElementById("status").textContent = "ZIP file created and downloaded.";
+        generateHTML();
+    }).catch(err => console.error("Error creating ZIP:", err));
 }
 
-// Funktion zum Extrahieren der Bildgrößen aus dem eingegebenen Text
+// Extract image sizes from the input text
 function extractSizesFromText(text) {
-    const sizeRegex = /(\d+)×(\d+)/g; // RegEx für die Erkennung von "Breite×Höhe"
-    const extractedSizes = [];
-    let match;
-
-    while ((match = sizeRegex.exec(text)) !== null) {
-        const width = parseInt(match[1]);
-        const height = parseInt(match[2]);
-        extractedSizes.push([width, height]);
-    }
-
-    return extractedSizes; // Array von Bildgrößen zurückgeben
+    return [...text.matchAll(/(\d+)×(\d+)/g)].map(match => [parseInt(match[1]), parseInt(match[2])]);
 }
 
-// Funktion zur Generierung der HTML-Ausgabe
+// Generate HTML output for image srcset
 function generateHTML() {
-    const generatedHtmlContainer = document.getElementById('generatedHtml');
-    console.log(originalImage);
-    if (!originalImage || sizes.length === 0) return;
+    const container = document.getElementById('generatedHtml');
+    if (!originalImage || !sizes.length) return;
 
-    const imgSrc = `../images/${imageName}.${imageExtension}`; // Der Bildpfad variabel gestalten
-    const imgSetParts = sizes.map(size => {
-        const [width, height] = size;
-        return `../images/${imageName}-${width}x${height}.${imageExtension} ${width}w`; // Hier auch den Pfad variabel gestalten
-    });
+    const imgSrc = `../images/${imageName}.${imageExtension}`;
+    const srcset = sizes.map(([width, height]) => `../images/${imageName}-${width}x${height}.${imageExtension} ${width}w`).join(',\n        ');
 
-    const srcset = imgSetParts.join(',\n        '); // srcset zusammenfügen
-    const htmlOutput = `
-<img
-src="${imgSrc}"
-srcset="
-${srcset}"
-sizes="100vw"
-/>`;
-
-    generatedHtmlContainer.textContent = htmlOutput.trim(); 
+    container.textContent = `<img src="${imgSrc}" srcset="${srcset}" sizes="100vw" />`.trim();
 }
