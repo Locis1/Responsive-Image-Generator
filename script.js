@@ -63,8 +63,31 @@ function generateHTML() {
     const container = document.getElementById('generatedHtml');
     if (!originalImage || !sizes.length) return;
 
-    const imgSrc = `../images/${imageName}.${imageExtension}`;
-    const srcset = sizes.map(([width, height]) => `../images/${imageName}-${width}x${height}.${imageExtension} ${width}w`).join(',\n        ');
+    const basePath = document.getElementById('basePathInput').value;
+    const imgSrc = `${basePath}${imageName}.${imageExtension}`;
+    const srcset = sizes.map(([width, height]) => `${basePath}${imageName}-${width}x${height}.${imageExtension} ${width}w`).join(',\n        ');
 
-    container.textContent = `<img src="${imgSrc}" srcset="${srcset}" sizes="100vw" />`.trim();
+    // Dynamically build the img tag with only selected attributes
+    let imgTag = `<img src="${imgSrc}" srcset="${srcset}" sizes="${document.getElementById('sizesInput').value}"`;
+
+    // Check for loading attribute
+    const loading = document.getElementById('loadingSelect').value;
+    if (loading) {
+        imgTag += ` loading="${loading}"`;
+    }
+
+    // Check for fetchpriority attribute
+    const fetchPriority = document.getElementById('fetchprioritySelect').value;
+    if (fetchPriority) {
+        imgTag += ` fetchpriority="${fetchPriority}"`;
+    }
+
+    // Check for decoding attribute
+    const decoding = document.getElementById('decodingSelect').value;
+    if (decoding) {
+        imgTag += ` decoding="${decoding}"`;
+    }
+
+    imgTag += ' />'; // Close the img tag
+    container.textContent = imgTag.trim();
 }
