@@ -17,7 +17,7 @@
   <h2>Image Attributes</h2>
 
   <label for="basePathInput">Base Path:</label>
-  <input type="text" id="basePathInput" value="../images/" placeholder="Gib hier den Basis-Pfad ein..." />
+  <input type="text" id="basePathInput" value="./images/" placeholder="Gib hier den Basis-Pfad ein..." />
 
   <label for="loadingSelect">Loading:</label>
   <select id="loadingSelect">
